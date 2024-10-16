@@ -2097,7 +2097,7 @@ void TFT_eSPI::pushMaskedImage(int32_t x, int32_t y, int32_t w, int32_t h, uint1
   if (_vpOoB || w < 1 || h < 1) return;
 
   // To simplify mask handling the window clipping is done by the pushImage function
-  // Each mask image line assumed to be padded to and integer number of bytes & padding bits are 0
+  // Each mask image line assumed to be padded to an integer number of bytes & padding bits are 0
 
   begin_tft_write();
   inTransaction = true;
@@ -3153,8 +3153,10 @@ uint16_t TFT_eSPI::fontsLoaded(void)
 ** Function name:           fontHeight
 ** Description:             return the height of a font (yAdvance for free fonts)
 ***************************************************************************************/
-int16_t TFT_eSPI::fontHeight(int16_t font)
+int16_t TFT_eSPI::fontHeight(uint8_t font)
 {
+  if (font > 8) return 0;
+
 #ifdef SMOOTH_FONT
   if(fontLoaded) return gFont.yAdvance;
 #endif
@@ -4969,7 +4971,10 @@ uint16_t TFT_eSPI::decodeUTF8(uint8_t *buf, uint16_t *index, uint16_t remaining)
   }
 
   // 21-bit Unicode not supported so fall-back to extended ASCII
-  // if ((c & 0xF8) == 0xF0) return c;
+  // if (((c & 0xF8) == 0xF0) && (remaining > 3)) {
+  // c = ((c & 0x07) << 18) | ((buf[(*index)++] & 0x03F) << 12);
+  // c |= ((buf[(*index)++] & 0x3F) << 6);
+  // return c | ((buf[(*index)++] & 0x3F));
 
   return c; // fall-back to extended ASCII
 }
@@ -5681,6 +5686,8 @@ int16_t TFT_eSPI::drawString(const char *string, int32_t poX, int32_t poY)
 // With font number. Note: font number is over-ridden if a smooth font is loaded
 int16_t TFT_eSPI::drawString(const char *string, int32_t poX, int32_t poY, uint8_t font)
 {
+  if (font > 8) return 0;
+
   int16_t sumX = 0;
   uint8_t padding = 1, baseline = 0;
   uint16_t cwidth = textWidth(string, font); // Find the pixel width of the string in the font
@@ -6086,6 +6093,7 @@ void TFT_eSPI::setFreeFont(const GFXfont *f)
 void TFT_eSPI::setTextFont(uint8_t f)
 {
   textfont = (f > 0) ? f : 1; // Don't allow font 0
+  textfont = (f > 8) ? 1 : f; // Don't allow font > 8
   gfxFont = NULL;
 }
 
@@ -6111,6 +6119,7 @@ void TFT_eSPI::setFreeFont(uint8_t font)
 void TFT_eSPI::setTextFont(uint8_t f)
 {
   textfont = (f > 0) ? f : 1; // Don't allow font 0
+  textfont = (f > 8) ? 1 : f; // Don't allow font > 8
 }
 #endif
 
